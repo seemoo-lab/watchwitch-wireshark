@@ -1,0 +1,23 @@
+# Catppuccin Color Scheme - Machiatto flavor
+# https://github.com/catppuccin/palette
+# MIT License
+# Wireshark Color Codes are RGB * 257
+
+# Peach
+@Alloy@alloy@[62965,43433,32639][0,0,0]
+# Sapphire
+@BT.TS@btts@[32125,50372,58596][0,0,0]
+# Pink
+@CLink@clink@[62965,48573,59110][0,0,0]
+# Lavender
+@ESP@esp@[47031,48573,63736][0,0,0]
+# Maroon
+@IKE@isakmp@[61166,39321,41120][0,0,0]
+# Flamingo
+@Magnet@magnet@[61680,50886,50886][0,0,0]
+# Teal
+@NRLP@nrlp@[35723,54741,51914][0,0,0]
+# Blue
+@NWSC@nwsc@[35466,44461,62708][0,0,0]
+# Yellow
+@SHOES@shoes@[61166,54484,40863][0,0,0]

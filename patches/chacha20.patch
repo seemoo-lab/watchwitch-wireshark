@@ -1,0 +1,155 @@
+diff --git a/epan/dissectors/packet-ipsec.c b/epan/dissectors/packet-ipsec.c
+index b5b3bf1d01..de52656d5f 100644
+--- a/epan/dissectors/packet-ipsec.c
++++ b/epan/dissectors/packet-ipsec.c
+@@ -144,6 +144,9 @@ static dissector_table_t ip_dissector_table;
+ #define IPSEC_ENCRYPT_AES_GCM_12  10
+ #define IPSEC_ENCRYPT_AES_GCM_16  11
+ 
++/* Encryption algorithm defined in RFC 8750 */
++#define IPSEC_ENCRYPT_CHACHA20_POLY1305_IIV 12
++
+ /* Authentication algorithms defined in RFC 4305 */
+ #define IPSEC_AUTH_NULL 0
+ #define IPSEC_AUTH_HMAC_SHA1_96 1
+@@ -171,6 +174,7 @@ static dissector_table_t ip_dissector_table;
+ #define IPSEC_STRLEN_IPV4 8
+ #define IPSEC_SA_IPV4 1
+ #define IPSEC_SA_IPV6 2
++#define IPSEC_SA_ANY 3
+ #define IPSEC_SA_UNKNOWN -1
+ #define IPSEC_SA_WILDCARDS_ANY '*'
+ /* the maximum number of bytes (10)(including the terminating nul character(11)) */
+@@ -208,6 +212,7 @@ static const value_string esp_encryption_type_vals[] = {
+   { IPSEC_ENCRYPT_AES_GCM_8,  "AES-GCM with 8 octet ICV [RFC4106]" },
+   { IPSEC_ENCRYPT_AES_GCM_12, "AES-GCM with 12 octet ICV [RFC4106]" },
+   { IPSEC_ENCRYPT_AES_GCM_16, "AES-GCM with 16 octet ICV [RFC4106]" },
++  { IPSEC_ENCRYPT_CHACHA20_POLY1305_IIV, "ChaCha20 with Poly1305 IIV [RFC8750]" },
+   { 0x00, NULL }
+ };
+ 
+@@ -1004,13 +1009,14 @@ filter_address_match(gchar *addr, gchar *filter, gint typ)
+           return FALSE;
+       if (!get_full_ipv4_addr(filter_hex, filter))
+           return FALSE;
+-  } else {
++  } else if(typ == IPSEC_SA_IPV6) {
+       if (get_full_ipv6_addr(addr_hex, addr))
+           return FALSE;
+       if (get_full_ipv6_addr(filter_hex, filter))
+           return FALSE;
++  } else if(typ == IPSEC_SA_ANY) {
++      return TRUE;
+   }
+-
+   addr_len = (guint)strlen(addr_hex);
+   filter_len = (guint)strlen(filter_hex);
+ 
+@@ -1143,9 +1149,9 @@ get_esp_sa(gint protocol_typ, gchar *src,  gchar *dst,  guint spi,
+       record = &uat_esp_sa_records[i++];
+     }
+ 
+-    if((protocol_typ == record->protocol)
+-       && filter_address_match(src, record->srcIP, protocol_typ)
+-       && filter_address_match(dst, record->dstIP, protocol_typ)
++    if((protocol_typ == record->protocol || record->protocol == IPSEC_SA_ANY)
++       && (filter_address_match(src, record->srcIP, protocol_typ) || record->protocol == IPSEC_SA_ANY)
++       && (filter_address_match(dst, record->dstIP, protocol_typ) || record->protocol == IPSEC_SA_ANY)
+        && filter_spi_match(spi, record->spi))
+     {
+       found = TRUE;
+@@ -1451,6 +1457,8 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+   int crypt_mode_libgcrypt = 0;
+   int auth_algo_libgcrypt = 0;
+   gchar *esp_icv_expected = NULL; /* as readable hex string, for error messages */
++  guint32 salt;
++  unsigned char esp_iiv[12]; /* Implicit IV for decrypting ChaCha20-Poly1805 */
+   unsigned char ctr_block[16];
+ 
+ 
+@@ -1508,6 +1516,8 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+       protocol_typ = IPSEC_SA_IPV4;
+     }else if (pinfo->src.type == AT_IPv6){
+       protocol_typ = IPSEC_SA_IPV6;
++    }else {
++      // protocol_typ = IPSEC_SA_ANY;
+     }
+ 
+     /* Create strings for src, dst addresses */
+@@ -1909,7 +1919,7 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+           */
+ 
+           /* Fix parameters for TWOFISH-CBC */
+-          esp_iv_len = 16;
++          esp_iv_len = 8; // RFC 8750 defines a 64 Bit IV
+           crypt_mode_libgcrypt = GCRY_CIPHER_MODE_CBC;
+ 
+           switch(esp_encr_key_len * 8)
+@@ -1957,6 +1967,23 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+ 
+           break;
+ 
++        case IPSEC_ENCRYPT_CHACHA20_POLY1305_IIV:
++          esp_iv_len = 0; // Implicit IV - First Byte after SEQ is Data
++          esp_icv_len = 16; // AEAD Mode - ICV is Associated Data
++          crypt_algo_libgcrypt = GCRY_CIPHER_CHACHA20;
++          crypt_mode_libgcrypt = GCRY_CIPHER_MODE_POLY1305;
++
++          if (esp_encr_key_len != gcry_cipher_get_algo_keylen (crypt_algo_libgcrypt))
++          {
++            REPORT_DISSECTOR_BUG("<ESP Preferences> Error in Encryption Algorithm CHACHA20_POLY1305_IIV: Bad Keylen (%u Bits, need %lu)\n",
++                                 esp_encr_key_len * 8, (unsigned long) gcry_cipher_get_algo_keylen (crypt_algo_libgcrypt) * 8);
++            decrypt_ok = FALSE;
++          }
++          else
++            decrypt_using_libgcrypt = TRUE;
++
++          break;
++
+         case IPSEC_ENCRYPT_NULL :
+         default :
+           /* Fix parameters */
+@@ -1993,6 +2020,7 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+ 
+           iv_item = proto_tree_add_item(esp_tree, hf_esp_iv, tvb, offset, esp_iv_len, ENC_NA);
+             proto_item_append_text(iv_item, " (%d bytes)", esp_iv_len);
++            // Here?
+             esp_iv = (guchar *)tvb_memdup(wmem_packet_scope(), tvb, offset, esp_iv_len);
+ 
+           offset += esp_iv_len;
+@@ -2103,6 +2131,27 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+               err = gcry_cipher_setiv(*cipher_hd, ctr_block, esp_salt_len + esp_iv_len);
+             }
+           }
++          else if (esp_encr_algo == IPSEC_ENCRYPT_CHACHA20_POLY1305_IIV)
++          {
++            // Implicit IV, see https://www.rfc-editor.org/rfc/rfc8750.html
++            memset(esp_iiv, 0, 12);
++            memcpy(&salt, &esp_auth_key, 4);
++            esp_iiv[0] = esp_auth_key[0] & 0xff;
++            esp_iiv[1] = esp_auth_key[1] & 0xff;
++            esp_iiv[2] = esp_auth_key[2] & 0xff;
++            esp_iiv[3] = esp_auth_key[3] & 0xff;
++            esp_iiv[8] = sequence_number >> 24;
++            esp_iiv[9] = sequence_number >> 16;
++            esp_iiv[10] = sequence_number >> 8;
++            esp_iiv[11] = sequence_number;
++            err = gcry_cipher_setiv(*cipher_hd, esp_iiv, 12);
++            // AAD for IIV consists of spi + seq (the first 8 bytes of the esp header)
++            //esp_decr_data_len = esp_encr_data_len - 16; // The last 16 Bytes are the Poly1305 tag
++            //guint8 *aad = wmem_alloc(pinfo->pool, ESP_HEADER_LEN);
++            //tvb_memcpy(tvb, aad, 0, 8);
++            //REPORT_DISSECTOR_BUG("<IPsec/ESP Dissector> AAD: %02x %02x %02x %02x %02x %02x %02x %02x\n", aad[0], aad[1], aad[2], aad[3], aad[4], aad[5], aad[6], aad[7]);
++            //err = gcry_cipher_authenticate(*cipher_hd, aad, ESP_HEADER_LEN);
++          }
+           else
+           {
+             err = gcry_cipher_setiv(*cipher_hd, esp_iv, esp_iv_len);
+@@ -2505,6 +2554,7 @@ proto_register_ipsec(void)
+   static const value_string esp_proto_type_vals[] = {
+     { IPSEC_SA_IPV4, "IPv4" },
+     { IPSEC_SA_IPV6, "IPv6" },
++    { IPSEC_SA_ANY, "Any" },
+     { 0x00, NULL }
+   };
+ 
