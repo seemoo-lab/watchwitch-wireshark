@@ -53,3 +53,7 @@ More information about each protocol can be found under [doc/protocols.md](doc/p
 ## References
 - Nils Rollshausen, **WatchWitch: Investigating Apple Watch Interoperability and Security**, unpublished thesis, Master’s thesis, _Technical University of Darmstadt_, 2023.
 - PyATV, **PyATV Documentation: Companion Link**, URL: https://pyatv.dev/documentation/protocols/#companion-link (visited on 08/29/2024)
+
+## Authors
+- **Nojus** ([@pabloaul](https://github.com/pabloaul))
+- **Sebastian** ([@sebinbash](https://github.com/sebinbash))
