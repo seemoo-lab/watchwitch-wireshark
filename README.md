@@ -1,4 +1,4 @@
-# WatchWitch Wireshark Dissectors
+# <img src="doc/img/logo.png" alt="WatchWitch logo" height=42 width=42 valign=bottom /> WatchWitch Wireshark Dissectors
 
 This repository is a collection of various dissectors, scripts, and patches to assist in understanding the proprietary protocols of the Apple Watch used via Bluetooth and WiFi while utilizing the existing Wireshark ecosystem.	
 
