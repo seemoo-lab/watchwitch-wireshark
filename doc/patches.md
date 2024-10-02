@@ -5,7 +5,7 @@ This is required to see data beyond the ESP encryption.
 
 ## Installation
 ### NixOS
-1. Enter [../patches/](patches/) directory
+1. Enter [patches/](../patches/) directory
 
 2. Run `nix-shell` (nixpkgs within was pinned to nixos-24.05)
 
