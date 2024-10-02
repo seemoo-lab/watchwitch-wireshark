@@ -5,18 +5,18 @@ This is required to see data beyond the ESP encryption.
 
 ## Installation
 ### NixOS
-1. Enter [patches/](patches/) directory
+1. Enter [../patches/](patches/) directory
 
 2. Run `nix-shell` (nixpkgs within was pinned to nixos-24.05)
 
 3. You are now in a shell with the patched Wireshark after compilation finished. Run `wireshark` to start.
 
 ### Other OS
-1. Aquire Wireshark Source [v4.2.6](https://gitlab.com/wireshark/wireshark/-/archive/v4.2.6/wireshark-v4.2.6.tar.gz) (newer versions likely will work too until they touch the IPSec/ESP code)
+1. Acquire Wireshark Source [v4.2.6](https://gitlab.com/wireshark/wireshark/-/archive/v4.2.6/wireshark-v4.2.6.tar.gz) (newer versions likely will work too until they touch the IPSec/ESP code)
 
 2. Extract and move patch to root of the source code
 
-3. Apply patch: `git apply chacha20.patch`
+3. Apply patch: `git apply chacha20.patch`. For wireshark v4.4.0 to v4.5.0, use `chacha20-v450.patch`
 
 4. Follow Wireshark build instructions for your respective environment
 
@@ -35,5 +35,5 @@ For the case of dissecting Apple Watch data, it is recommended to turn off "Chec
 - Src/Dest IP can remain empty
 - Encryption should be set to `ChaCha20 with Poly1305 IIV [RFC8750]`
 - SPI and Encryption Key should be filled out like usual
+- Encryption Key should be 36 bytes (32B key followed by 4B salt)
 - Authentication should be set to `NULL`
-- Authentication Key should contain the Salt

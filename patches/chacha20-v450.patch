@@ -1,8 +1,8 @@
 diff --git a/epan/dissectors/packet-ipsec.c b/epan/dissectors/packet-ipsec.c
-index b5b3bf1d01..4a5e2a335c 100644
+index c8699dd8ad..61a8ad4991 100644
 --- a/epan/dissectors/packet-ipsec.c
 +++ b/epan/dissectors/packet-ipsec.c
-@@ -144,6 +144,9 @@ static dissector_table_t ip_dissector_table;
+@@ -146,6 +146,9 @@ static dissector_table_t ip_dissector_table;
  #define IPSEC_ENCRYPT_AES_GCM_12  10
  #define IPSEC_ENCRYPT_AES_GCM_16  11
  
@@ -12,7 +12,7 @@ index b5b3bf1d01..4a5e2a335c 100644
  /* Authentication algorithms defined in RFC 4305 */
  #define IPSEC_AUTH_NULL 0
  #define IPSEC_AUTH_HMAC_SHA1_96 1
-@@ -171,6 +174,7 @@ static dissector_table_t ip_dissector_table;
+@@ -173,6 +176,7 @@ static dissector_table_t ip_dissector_table;
  #define IPSEC_STRLEN_IPV4 8
  #define IPSEC_SA_IPV4 1
  #define IPSEC_SA_IPV6 2
@@ -20,7 +20,7 @@ index b5b3bf1d01..4a5e2a335c 100644
  #define IPSEC_SA_UNKNOWN -1
  #define IPSEC_SA_WILDCARDS_ANY '*'
  /* the maximum number of bytes (10)(including the terminating nul character(11)) */
-@@ -208,6 +212,7 @@ static const value_string esp_encryption_type_vals[] = {
+@@ -212,6 +216,7 @@ static const value_string esp_encryption_type_vals[] = {
    { IPSEC_ENCRYPT_AES_GCM_8,  "AES-GCM with 8 octet ICV [RFC4106]" },
    { IPSEC_ENCRYPT_AES_GCM_12, "AES-GCM with 12 octet ICV [RFC4106]" },
    { IPSEC_ENCRYPT_AES_GCM_16, "AES-GCM with 16 octet ICV [RFC4106]" },
@@ -28,22 +28,22 @@ index b5b3bf1d01..4a5e2a335c 100644
    { 0x00, NULL }
  };
  
-@@ -1004,11 +1009,13 @@ filter_address_match(gchar *addr, gchar *filter, gint typ)
-           return FALSE;
+@@ -1034,11 +1039,13 @@ filter_address_match(char *addr, char *filter, int typ)
+           return false;
        if (!get_full_ipv4_addr(filter_hex, filter))
-           return FALSE;
+           return false;
 -  } else {
 +  } else if(typ == IPSEC_SA_IPV6) {
        if (get_full_ipv6_addr(addr_hex, addr))
-           return FALSE;
+           return false;
        if (get_full_ipv6_addr(filter_hex, filter))
-           return FALSE;
+           return false;
 +  } else if(typ == IPSEC_SA_ANY) {
-+    return TRUE;
++      return TRUE;
    }
  
-   addr_len = (guint)strlen(addr_hex);
-@@ -1143,9 +1150,9 @@ get_esp_sa(gint protocol_typ, gchar *src,  gchar *dst,  guint spi,
+   addr_len = (unsigned)strlen(addr_hex);
+@@ -1175,9 +1182,9 @@ get_esp_sa(int protocol_typ, char *src,  char *dst,  unsigned spi,
        record = &uat_esp_sa_records[i++];
      }
  
@@ -55,16 +55,16 @@ index b5b3bf1d01..4a5e2a335c 100644
 +       && (filter_address_match(dst, record->dstIP, protocol_typ) || record->protocol == IPSEC_SA_ANY)
         && filter_spi_match(spi, record->spi))
      {
-       found = TRUE;
-@@ -1452,6 +1459,7 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+       found = true;
+@@ -1505,6 +1512,7 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
    int auth_algo_libgcrypt = 0;
-   gchar *esp_icv_expected = NULL; /* as readable hex string, for error messages */
+   char *esp_icv_expected = NULL; /* as readable hex string, for error messages */
    unsigned char ctr_block[16];
 +  unsigned char esp_iiv[12]; /* Implicit IV for decrypting ChaCha20-Poly1805 */
  
  
-   guint32 sequence_number;
-@@ -1957,6 +1965,27 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+   uint32_t sequence_number;
+@@ -2043,6 +2051,27 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
  
            break;
  
@@ -92,7 +92,7 @@ index b5b3bf1d01..4a5e2a335c 100644
          case IPSEC_ENCRYPT_NULL :
          default :
            /* Fix parameters */
-@@ -2103,6 +2132,23 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+@@ -2189,6 +2218,23 @@ dissect_esp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                err = gcry_cipher_setiv(*cipher_hd, ctr_block, esp_salt_len + esp_iv_len);
              }
            }
@@ -116,7 +116,7 @@ index b5b3bf1d01..4a5e2a335c 100644
            else
            {
              err = gcry_cipher_setiv(*cipher_hd, esp_iv, esp_iv_len);
-@@ -2505,6 +2551,7 @@ proto_register_ipsec(void)
+@@ -2607,6 +2653,7 @@ proto_register_ipsec(void)
    static const value_string esp_proto_type_vals[] = {
      { IPSEC_SA_IPV4, "IPv4" },
      { IPSEC_SA_IPV6, "IPv6" },
