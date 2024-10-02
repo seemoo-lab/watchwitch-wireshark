@@ -25,3 +25,20 @@
 
 8. After you're done, save your capture as a `.pklg` capture: ``File -> Save As...``
 
+## Capturing with ESP Keys
+
+To be able to decrypt ESP payloads, we need to extract key material from the iPhone using [Frida](https://frida.re). This requires a jailbroken iPhone with Frida installed.
+
+Run the supplied script before connecting the watch and the phone:
+
+```bash
+frida -U terminusd -l scripts/dumpEspKeys.js
+```
+
+This will produce the following output, which you can use to set up ESP SAs in wireshark:
+
+```
+ESP encryption mode is ChaCha20Poly1305IIV
+SPI 0x06595ff4 Encryption Key 0xee6d5c0c7ccb8971e4f339ca3f08bd0557898752315b1fe3daf5307ff40ad02768894559
+SPI 0x03273281 Encryption Key 0x7c5f67eb2d04cf36c02e87a9ca3a53e885233434aaf8696ecf1c484be88f27bdb076de5c
+```
