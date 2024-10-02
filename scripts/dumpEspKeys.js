@@ -27,8 +27,8 @@ try {
       const incomingEncryptionKey = readHex(this.self.incomingEncryptionKey().bytes(), this.self.incomingEncryptionKey().length())
 
       console.log(`ESP encryption mode is ${proposal.encryptionProtocol()}`)
-      console.log(`SPI 0x${localSPI} Encryption Key 0x${outgoingEncryptionKey}`)
-      console.log(`SPI 0x${remoteSPI} Encryption Key 0x${incomingEncryptionKey}`)
+      console.log(`SPI 0x${remoteSPI} Encryption Key 0x${outgoingEncryptionKey}`)
+      console.log(`SPI 0x${localSPI} Encryption Key 0x${incomingEncryptionKey}`)
 
       if(this.self.outgoingIntegrityKey() != null || this.self.incomingIntegrityKey() != null) {
         console.log("WARNING: exptected integrity keys to be null but found:")
