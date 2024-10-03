@@ -132,6 +132,8 @@ local f = alloy_proto.fields
   f.protobuf_type = ProtoField.uint16("alloy.protobuf_type", "Protobuf Type", base.HEX)
   f.is_response =   ProtoField.uint16("alloy.is_response", "Protobuf is Response", base.HEX)
 
+local alloy_fragments = {}
+
 function parse_hello_tlvs(buffer, pinfo, tree, offset)
   local buflen = buffer:len()
 
@@ -433,23 +435,10 @@ local function dissect_alloy_data(buffer, pinfo, tree)
 
   elseif cmd == 0x15 then -- Fragment
     tree:append_text("Fragment ") -- TODO: collect all fragments and then reassemble
-
-    tree:add(f.frag_num, buffer(offset, 4)) -- what fragment transfer is this?
-    offset = offset + 4 
-    
-    tree:add(f.frag_idx, buffer(offset, 4)) -- which fragment is this?
-    local fragment_index = buffer(offset, 4):uint()
-    offset = offset + 4
-
-    tree:add(f.frag_ctr, buffer(offset, 4)) -- how many fragments are there in total?
-    local fragment_count = buffer(offset, 4):uint()
-    offset = offset + 4
-    
     tree:add(f.data, buffer(offset)) -- fragment
+    reassemble_alloy_fragments(buffer, pinfo, tree, offset)
     offset = offset + buffer(offset):len()
     
-    tree:append_text("Transfer: [" .. fragment_index + 1 .. " / " .. fragment_count .. "]")
-
   elseif cmd == 0x27 then -- ServiceMap
     tree:append_text("ServiceMap ")
 
@@ -461,6 +450,41 @@ local function dissect_alloy_data(buffer, pinfo, tree)
   end
 
   return offset
+end
+
+function reassemble_alloy_fragments(buffer, pinfo, tree, offset)
+  tree:add(f.frag_num, buffer(offset, 4)) -- what fragment transfer is this?
+  local fragment_number = buffer(offset, 4):uint()
+  offset = offset + 4 
+  
+  tree:add(f.frag_idx, buffer(offset, 4)) -- which fragment is this?
+  local fragment_index = buffer(offset, 4):uint()
+  offset = offset + 4
+
+  tree:add(f.frag_ctr, buffer(offset, 4)) -- how many fragments are there in total?
+  local fragment_count = buffer(offset, 4):uint()
+  offset = offset + 4
+
+  if alloy_fragments[fragment_number] == nil then -- found new fragment transfer! create table and populate total fragment count
+    alloy_fragments[fragment_number] = {}
+    alloy_fragments[fragment_number]["total_fragment_count"] = fragment_count
+  end
+  if alloy_fragments[fragment_number][fragment_index] == nil then -- found new fragment! adding it to table
+    alloy_fragments[fragment_number][fragment_index] = buffer(offset):bytes()
+  end
+  
+  tree:append_text("Transfer: [" .. fragment_index + 1 .. " / " .. fragment_count .. "] ")
+  
+  if fragment_count == fragment_index + 1 then -- if we are at the last fragment, attempt to put together and dissect the payload...
+    local reassembled_bytes = ByteArray.new()
+    for i = 0,fragment_index,1 do -- put all fragments together into a bytearray
+      reassembled_bytes:append(alloy_fragments[fragment_number][i])
+    end
+    dissect_alloy_data(reassembled_bytes:tvb("Reassembled Alloy"), pinfo, tree) -- dissect our reassembled data
+    return
+  end
+
+  return
 end
 
 function dissect_alloy_control(buffer, pinfo, tree)
