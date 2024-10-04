@@ -413,6 +413,8 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     end
 
   elseif cmd == 0x07 then -- AppAck
+    tree:append_text("AppAck ")
+
     tree:add(f.seq, buffer(offset, 4))
     offset = offset + 4
 
@@ -434,7 +436,8 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     end
 
   elseif cmd == 0x15 then -- Fragment
-    tree:append_text("Fragment ") -- TODO: collect all fragments and then reassemble
+    tree:append_text("Fragment ")
+
     tree:add(f.data, buffer(offset)) -- fragment
     reassemble_alloy_fragments(buffer, pinfo, tree, offset)
     offset = offset + buffer(offset):len()
@@ -472,6 +475,9 @@ function reassemble_alloy_fragments(buffer, pinfo, tree, offset)
   if alloy_fragments[fragment_number][fragment_index] == nil then -- found new fragment! adding it to table
     alloy_fragments[fragment_number][fragment_index] = buffer(offset):bytes()
   end
+  if pinfo.visited == true then -- this means that we have parsed every fragment. adding frame number...
+    tree:append_text("[Reassembled in: "..alloy_fragments[fragment_number]["reassembled_in"].."] ")
+  end
   
   tree:append_text("Transfer: [" .. fragment_index + 1 .. " / " .. fragment_count .. "] ")
   
@@ -480,7 +486,9 @@ function reassemble_alloy_fragments(buffer, pinfo, tree, offset)
     for i = 0,fragment_index,1 do -- put all fragments together into a bytearray
       reassembled_bytes:append(alloy_fragments[fragment_number][i])
     end
-    dissect_alloy_data(reassembled_bytes:tvb("Reassembled Alloy"), pinfo, tree) -- dissect our reassembled data
+    alloy_fragments[fragment_number]["reassembled_in"] = pinfo.number
+    local fragment_tree = tree:add("Reassembled Alloy: ")
+    dissect_alloy_data(reassembled_bytes:tvb("Reassembled Alloy"), pinfo, fragment_tree) -- dissect our reassembled data
     return
   end
 
