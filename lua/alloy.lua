@@ -468,15 +468,19 @@ function reassemble_alloy_fragments(buffer, pinfo, tree, offset)
   local fragment_count = buffer(offset, 4):uint()
   offset = offset + 4
 
-  if alloy_fragments[fragment_number] == nil then -- found new fragment transfer! create table and populate total fragment count
+  local fragment_source = pinfo.src_port
+  if alloy_fragments[fragment_number] == nil then -- found new fragment transfer number! creating table for it
     alloy_fragments[fragment_number] = {}
-    alloy_fragments[fragment_number]["total_fragment_count"] = fragment_count
   end
-  if alloy_fragments[fragment_number][fragment_index] == nil then -- found new fragment! adding it to table
-    alloy_fragments[fragment_number][fragment_index] = buffer(offset):bytes()
+  if alloy_fragments[fragment_number][fragment_source] == nil then -- found unique fragment transfer (numbers are only unique for each source)
+    alloy_fragments[fragment_number][fragment_source] = {}
+    alloy_fragments[fragment_number][fragment_source]["total_fragment_count"] = fragment_count
+  end
+  if alloy_fragments[fragment_number][fragment_source][fragment_index] == nil then -- found new fragment! adding it to table
+    alloy_fragments[fragment_number][fragment_source][fragment_index] = buffer(offset):bytes()
   end
   if pinfo.visited == true then -- this means that we have parsed every fragment. adding frame number...
-    tree:append_text("[Reassembled in: "..alloy_fragments[fragment_number]["reassembled_in"].."] ")
+    tree:append_text("[Reassembled in: "..alloy_fragments[fragment_number][fragment_source]["reassembled_in"].."] ")
   end
   
   tree:append_text("Transfer: [" .. fragment_index + 1 .. " / " .. fragment_count .. "] ")
@@ -484,9 +488,9 @@ function reassemble_alloy_fragments(buffer, pinfo, tree, offset)
   if fragment_count == fragment_index + 1 then -- if we are at the last fragment, attempt to put together and dissect the payload...
     local reassembled_bytes = ByteArray.new()
     for i = 0,fragment_index,1 do -- put all fragments together into a bytearray
-      reassembled_bytes:append(alloy_fragments[fragment_number][i])
+      reassembled_bytes:append(alloy_fragments[fragment_number][fragment_source][i])
     end
-    alloy_fragments[fragment_number]["reassembled_in"] = pinfo.number
+    alloy_fragments[fragment_number][fragment_source]["reassembled_in"] = pinfo.number
     local fragment_tree = tree:add("Reassembled Alloy: ")
     dissect_alloy_data(reassembled_bytes:tvb("Reassembled Alloy"), pinfo, fragment_tree) -- dissect our reassembled data
     return
