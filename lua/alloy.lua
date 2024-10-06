@@ -131,6 +131,7 @@ local f = alloy_proto.fields
   f.expiry_date =   ProtoField.uint32("alloy.expiry_date", "Expiry Date Timestamp", base.HEX)
   f.protobuf_type = ProtoField.uint16("alloy.protobuf_type", "Protobuf Type", base.HEX)
   f.is_response =   ProtoField.uint16("alloy.is_response", "Protobuf is Response", base.HEX)
+  f.frame_ref =     ProtoField.framenum("alloy.reassembled_in", "Reassembled in Frame", base.NONE)
 
 local alloy_fragments = {}
 
@@ -480,7 +481,7 @@ function reassemble_alloy_fragments(buffer, pinfo, tree, offset)
     alloy_fragments[fragment_number][fragment_source][fragment_index] = buffer(offset):bytes()
   end
   if pinfo.visited == true then -- this means that we have parsed every fragment. adding frame number...
-    tree:append_text("[Reassembled in: "..alloy_fragments[fragment_number][fragment_source]["reassembled_in"].."] ")
+    tree:add(f.frame_ref, alloy_fragments[fragment_number][fragment_source]["reassembled_in"])
   end
   
   tree:append_text("Transfer: [" .. fragment_index + 1 .. " / " .. fragment_count .. "] ")
