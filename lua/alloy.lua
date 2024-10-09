@@ -767,7 +767,7 @@ function dissect_alloy_control(buffer, pinfo, tree)
 
     tree:add(f.unk, buffer(offset, 2))
     offset = offset + 2
-    
+
     tree:add(f.remote_uuid, buffer(offset, remote_uuid_len))
     offset = offset + remote_uuid_len
 
@@ -846,6 +846,65 @@ function dissect_alloy_control(buffer, pinfo, tree)
     offset = offset + key_len
 
     tree:append_text("SetupEncryptedChannel ")
+
+  elseif cmd == 0x0d then -- Setup Direct Channel
+    pinfo.cols.info:append("[Control: SetupDirectChannel] ")
+
+    tree:add(f.channel_proto, buffer(offset, 1))
+    offset = offset + 1
+
+    tree:add(f.src_port, buffer(offset, 2))
+    local source_port = buffer(offset, 2):uint()
+    offset = offset + 2
+
+    tree:add(f.dest_port, buffer(offset, 2))
+    local dest_port = buffer(offset, 2):uint()
+    offset = offset + 2
+
+    local remote_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), remote_uuid_len, nil, "(Remote UUID Length)")
+    offset = offset + 2
+
+    local local_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), local_uuid_len, nil, "(Local UUID Length)")
+    offset = offset + 2
+    
+    local account_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), account_len, nil, "(Account Length)")
+    offset = offset + 2
+    
+    local service_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), service_len, nil, "(Service Length)")
+    offset = offset + 2
+    
+    local name_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), name_len, nil, "(Name Length)")
+    offset = offset + 2
+
+    tree:add(f.remote_uuid, buffer(offset, remote_uuid_len))
+    offset = offset + remote_uuid_len
+
+    tree:add(f.local_uuid, buffer(offset, local_uuid_len))
+    offset = offset + local_uuid_len
+
+    tree:add(f.account, buffer(offset, account_len))
+    offset = offset + account_len
+
+    tree:add(f.service, buffer(offset, service_len))
+    offset = offset + service_len
+
+    tree:add(f.name, buffer(offset, name_len))
+    offset = offset + name_len
+
+    local service_name = buffer(offset-name_len, name_len):string()
+    tree:append_text("Opened direct channel: ["..service_name.."]".." to port: "..dest_port)
+
+  elseif cmd == 0x0e then -- Direct Message Info
+    pinfo.cols.info:append("[Control: DirectMessageInfo] ")
+
+    tree:add(f.data, offset)
+
+    tree:append_text("DirectMessageInfo ")
   end
 
   return offset
