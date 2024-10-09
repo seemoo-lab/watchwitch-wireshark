@@ -314,7 +314,10 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     tree:append_text("ACK ")
 
     tree:add(f.seq, buffer(offset, 4))
+    local seq = buffer(offset, 4):uint()
     offset = offset + 4
+
+    tree:append_text("["..seq.."] ")
 
   elseif cmd == 0x03 then -- Protobuf
     tree:append_text("Protobuf ")
@@ -439,9 +442,11 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     tree:append_text("AppAck ")
 
     tree:add(f.seq, buffer(offset, 4))
+    local seq = buffer(offset, 4):uint()
     offset = offset + 4
 
     tree:add(f.stream, buffer(offset, 2))
+    local stream = buffer(offset, 2):uint()
     offset = offset + 2
 
     local response_id_len = buffer(offset, 4):uint()
@@ -450,12 +455,17 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     tree:add(f.response_id, buffer(offset, response_id_len))
     offset = offset + response_id_len
 
+    tree:append_text("["..seq.."/"..stream.."] ")
+
     if buffer(offset):len() ~= 0 then -- hack: topic not always present and there is no indicator for it
       local topic_len = buffer(offset, 4):uint()
       offset = offset + 4
 
       tree:add(f.topic, buffer(offset, topic_len))
+      local topname = buffer(offset, topic_len):string()
       offset = offset + topic_len
+
+      tree:append_text("from topic: "..topname)
     end
 
   elseif cmd == 0x15 then -- Fragment
