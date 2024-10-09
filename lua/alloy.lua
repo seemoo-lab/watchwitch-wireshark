@@ -12,7 +12,9 @@ local alloy_control_types = {
   [0x09]="FairplayDeviceSessionInfo",
   [0x0a]="OTRNegotiationMessage",
   [0x0b]="EncryptControlChannel",
-  [0x0c]="SuspendOTRNegotiationMessage"
+  [0x0c]="SuspendOTRNegotiationMessage",
+  [0x0d]="SetupDirectChannel",
+  [0x0e]="DirectMessageInfo"
 }
 
 local alloy_hello_tlv_types = {
@@ -65,8 +67,17 @@ local alloy_data_types = {
   [0x25]="ExpiredAck",
   [0x26]="Error",
   [0x27]="ServiceMap",
-  [0x28]="unknown?",
-  [0x29]="SessionReinitiate"
+  [0x28]="unknown?", -- missing
+  [0x29]="SessionReinitiate",
+  [0x2a]="SyndicationAction",
+  [0x2b]="Retract",
+  [0x2c]="Edit",
+  [0x2d]="RecoverSync",
+  [0x2e]="MarkAsUnread",
+  [0x2f]="DeliveredQuietly",
+  [0x30]="NotifyRecipient",
+  [0x31]="RecoverJunk",
+  [0x32]="SMSFilteringSettings"
 }
 
 local alloy_servicemap_tlv_types = {
@@ -83,28 +94,13 @@ local f = alloy_proto.fields
   f.seq =  ProtoField.uint32("alloy.seq", "Sequence Number", base.DEC)
   f.data = ProtoField.bytes ("alloy.data", "Payload", base.NONE)
   f.unk =  ProtoField.bytes ("alloy.unknown", "Unknown Data", base.NONE)
--- ALLOY control command 0x01 (hello)
-  f.ccver =    ProtoField.string("alloy.ccver", "CC Version", base.ASCII)
-  f.prodname = ProtoField.string("alloy.prodname", "Product Name", base.ASCII)
-  f.prodver =  ProtoField.string("alloy.prodver", "Product Version", base.ASCII)
-  f.build =    ProtoField.string("alloy.build", "Build", base.ASCII)
-  f.model =    ProtoField.string("alloy.model", "Model", base.ASCII)
-  f.protover = ProtoField.uint32("alloy.protover", "Protocol Version", base.DEC)
--- Alloy option TLVs
-  f.tlv_type =             ProtoField.uint8 ("alloy.options.type", "Type", base.HEX, alloy_hello_tlv_types)
-  f.tlv_len =              ProtoField.uint16("alloy.options.len", "Length", base.DEC)
-  f.tlv_min_ver =          ProtoField.uint64("alloy.options.min_ver", "Min. compatible Protocol Version", base.DEC)
-  f.tlv_max_ver =          ProtoField.uint64("alloy.options.max_ver", "Max. compatible Protocol Version", base.DEC)
-  f.tlv_inst_id =          ProtoField.bytes ("alloy.options.instance_id", "Instance ID: ", base.NONE)
-  f.tlv_cap_flags =        ProtoField.bytes ("alloy.options.capability_flags", "Capability Flags", base.NONE)
-  f.tlv_cap_flags_ipsec =  ProtoField.bool  ("alloy.options.capability_flags.ipsec", "Supports IPSec Link", 8, nil, 0x100)
-  f.tlv_cap_flags_tinker = ProtoField.bool  ("alloy.options.capability_flags.tinker", "Tinker", 8, nil, 0x400)
-  f.tlv_service_min_ver =  ProtoField.uint16("alloy.options.service_min_ver", "Min. compatible Service Version", base.DEC)
-  f.tlv_dev_id =           ProtoField.bytes ("alloy.options.device_id", "Device ID: ", base.NONE)
-  f.tlv_reason =           ProtoField.uint8 ("alloy.options.reason", "Reason", base.DEC)
-  f.tlv_stream_id =        ProtoField.uint16("alloy.options.stream", "Stream ID", base.DEC)
-  f.tlv_topic =            ProtoField.string("alloy.options.topic", "Topic", base.ASCII)
--- ALLOY control command 0x02 (SetupChannel)
+-- Alloy control fields
+  f.ccver =         ProtoField.string("alloy.ccver", "CC Version", base.ASCII)
+  f.prodname =      ProtoField.string("alloy.prodname", "Product Name", base.ASCII)
+  f.prodver =       ProtoField.string("alloy.prodver", "Product Version", base.ASCII)
+  f.build =         ProtoField.string("alloy.build", "Build", base.ASCII)
+  f.model =         ProtoField.string("alloy.model", "Model", base.ASCII)
+  f.protover =      ProtoField.uint32("alloy.protover", "Protocol Version", base.DEC)
   f.channel_proto = ProtoField.uint8 ("alloy.channel_proto", "Channel Protocol", base.HEX)
   f.src_port =      ProtoField.uint16("alloy.source_port", "Source Port", base.DEC)
   f.dest_port =     ProtoField.uint16("alloy.dest_port", "Destination Port", base.DEC)
@@ -113,18 +109,39 @@ local f = alloy_proto.fields
   f.account =       ProtoField.string("alloy.account", "Channel Account", base.ASCII)
   f.service =       ProtoField.string("alloy.service", "Channel Service", base.ASCII)
   f.name =          ProtoField.string("alloy.channel_name", "Channel Name", base.ASCII)
+  f.ssrc =          ProtoField.uint32("alloy.ssrc", "Encrypted Channel SSRC", base.HEX)
+  f.key =           ProtoField.bytes ("alloy.key", "Encrypted Channel Key", base.NONE)
+  f.start_seq =     ProtoField.uint16("alloy.start_seq", "Encrypted Channel Start Sequence", base.DEC)
+-- Alloy option TLVs
+  f.tlv_type =             ProtoField.uint8 ("alloy.options.type", "Type", base.HEX, alloy_hello_tlv_types)
+  f.tlv_len =              ProtoField.uint16("alloy.options.len", "Length", base.DEC)
+  f.tlv_min_ver =          ProtoField.uint64("alloy.options.min_ver", "Min. compatible Protocol Version", base.DEC)
+  f.tlv_max_ver =          ProtoField.uint64("alloy.options.max_ver", "Max. compatible Protocol Version", base.DEC)
+  f.tlv_inst_id =          ProtoField.bytes ("alloy.options.instance_id", "Instance ID: ", base.NONE)
+  f.tlv_cap_flags =        ProtoField.bytes ("alloy.options.capability_flags", "Capability Flags", base.NONE)
+  f.tlv_cap_tinker =       ProtoField.bool  ("alloy.options.capability_flags.tinker", "Tinker", 16, nil, 0x400)
+  f.tlv_cap_ipsec =        ProtoField.bool  ("alloy.options.capability_flags.ipsec", "Supports IPSec Link", 16, nil, 0x100)
+  f.tlv_cap_checksum =     ProtoField.bool  ("alloy.options.capability_flags.checksum", "Checksum enabled", 16, nil, 0x80) 
+  f.tlv_cap_dyn_services = ProtoField.bool  ("alloy.options.capability_flags.dynamic_services", "Dynamic Services", 16, nil, 0x8)
+  f.tlv_cap_resume_trans = ProtoField.bool  ("alloy.options.capability_flags.resume_transfers", "Resume Resource Transfers", 16, nil, 0x4)
+  f.tlv_cap_shared_otr =   ProtoField.bool  ("alloy.options.capability_flags.shared_otr", "Use shared OTR session", 16, nil, 0x2)
+  f.tlv_cap_new_service =  ProtoField.bool  ("alloy.options.capability_flags.new_service", "New service supported", 16, nil, 0x1)
+  f.tlv_srv_min_ver =      ProtoField.uint16("alloy.options.service_min_ver", "Min. compatible Service Version", base.DEC)
+  f.tlv_dev_id =           ProtoField.bytes ("alloy.options.device_id", "Device ID: ", base.NONE)
+  f.tlv_reason =           ProtoField.uint8 ("alloy.options.reason", "Reason", base.DEC)
+  f.tlv_stream_id =        ProtoField.uint16("alloy.options.stream", "Stream ID", base.DEC)
+  f.tlv_topic =            ProtoField.string("alloy.options.topic", "Topic", base.ASCII)
 -- Alloy data fields
-  f.frag_num =  ProtoField.uint32("alloy.fragment_number", "Fragment Number", base.DEC)
-  f.frag_idx =  ProtoField.uint32("alloy.fragment_index", "Fragment Index", base.DEC)
-  f.frag_ctr =  ProtoField.uint32("alloy.fragment_count", "Fragment Count", base.DEC)
-  f.stream =    ProtoField.uint16("alloy.stream", "Stream", base.DEC)
-  f.flags =     ProtoField.bytes ("alloy.flags", "Flags", base.BIN)
-  f.flags_top = ProtoField.bool  ("alloy.flags.top", "hasTopic", 8, nil, 0x10)
-  f.flags_exp = ProtoField.bool  ("alloy.flags.exp", "hasExpiryDate", 8, nil, 0x08)
-  f.flags_app = ProtoField.bool  ("alloy.flags.app", "wantsAppAck", 8, nil, 0x04)
-  f.flags_cpr = ProtoField.bool  ("alloy.flags.cpr", "compressed", 8, nil, 0x02)
-  f.flags_epr = ProtoField.bool  ("alloy.flags.epr", "expectsPeerResponse", 8, nil, 0x01)
-
+  f.frag_num =      ProtoField.uint32("alloy.fragment_number", "Fragment Number", base.DEC)
+  f.frag_idx =      ProtoField.uint32("alloy.fragment_index", "Fragment Index", base.DEC)
+  f.frag_ctr =      ProtoField.uint32("alloy.fragment_count", "Fragment Count", base.DEC)
+  f.stream =        ProtoField.uint16("alloy.stream", "Stream", base.DEC)
+  f.flags =         ProtoField.bytes ("alloy.flags", "Flags", base.BIN)
+  f.flags_top =     ProtoField.bool  ("alloy.flags.top", "hasTopic", 8, nil, 0x10)
+  f.flags_exp =     ProtoField.bool  ("alloy.flags.exp", "hasExpiryDate", 8, nil, 0x08)
+  f.flags_app =     ProtoField.bool  ("alloy.flags.app", "wantsAppAck", 8, nil, 0x04)
+  f.flags_cpr =     ProtoField.bool  ("alloy.flags.cpr", "compressed", 8, nil, 0x02)
+  f.flags_epr =     ProtoField.bool  ("alloy.flags.epr", "expectsPeerResponse", 8, nil, 0x01)
   f.response_id =   ProtoField.string("alloy.response_id", "Response ID", base.ASCII)
   f.topic =         ProtoField.string("alloy.topic", "Topic", base.ASCII)
   f.msg_uuid =      ProtoField.string("alloy.msg_uuid", "Message UUID", base.ASCII)
@@ -152,7 +169,7 @@ function parse_hello_tlvs(buffer, pinfo, tree, offset)
     local subtree = tree:add(alloy_proto, buffer(offset - length - 3, length + 3), "TLV: "..tlv_type)
     
     subtree:add(f.tlv_type, buffer(offset - length - 3, 1))
-    subtree:add(f.tlv_len, buffer(offset - length - 2, 2))
+    --subtree:add(f.tlv_len, buffer(offset - length - 2, 2))
     if type == 0x00 then
       subtree:add(f.tlv_min_ver, buffer(offset - length, length))
       local min_ver = buffer(offset - length, length):uint()
@@ -167,14 +184,19 @@ function parse_hello_tlvs(buffer, pinfo, tree, offset)
       subtree:append_text(": "..inst_id)
     elseif type == 0x03 then
       subtree:add(f.tlv_cap_flags, buffer(offset - length, length))
-      subtree:add(f.tlv_cap_flags_ipsec, buffer(offset - length, length))
-      subtree:add(f.tlv_cap_flags_tinker, buffer(offset - length, length))
+      subtree:add(f.tlv_cap_tinker, buffer(offset - length, length))
+      subtree:add(f.tlv_cap_ipsec, buffer(offset - length, length))
+      subtree:add(f.tlv_cap_checksum, buffer(offset - length, length))
+      subtree:add(f.tlv_cap_dyn_services, buffer(offset - length, length))
+      subtree:add(f.tlv_cap_resume_trans, buffer(offset - length, length))
+      subtree:add(f.tlv_cap_shared_otr, buffer(offset - length, length))
+      subtree:add(f.tlv_cap_new_service, buffer(offset - length, length))
       local cap_flags = buffer(offset - length, length)
       subtree:append_text(": "..cap_flags)
     elseif type == 0x04 then
-      subtree:add(f.tlv_service_min_ver, buffer(offset - length, length))
-      local service_min_ver = buffer(offset - length, length):uint()
-      subtree:append_text(": "..service_min_ver)
+      subtree:add(f.tlv_srv_min_ver, buffer(offset - length, length))
+      local srv_min_ver = buffer(offset - length, length):uint()
+      subtree:append_text(": "..srv_min_ver)
     elseif type == 0x05 then
       subtree:add(f.tlv_dev_id, buffer(offset - length, length))
       local device_id = buffer(offset - length, length)
@@ -201,7 +223,7 @@ function parse_servicemap_tlvs(buffer, pinfo, tree, offset)
     local subtree = tree:add(alloy_proto, buffer(offset - length - 3, length + 3), "TLV: "..tlv_type)
     
     subtree:add(f.tlv_type, buffer(offset - length - 3, 1))
-    subtree:add(f.tlv_len, buffer(offset - length - 2, 2))
+    --subtree:add(f.tlv_len, buffer(offset - length - 2, 2))
     if type == 0x01 then
       subtree:add(f.tlv_reason, buffer(offset - length, length))
       local reason = buffer(offset - length, length):uint()
@@ -316,7 +338,7 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     local response_id_len = buffer(offset, 4):uint()
     offset = offset + 4
 
-    tree:add(f.response_id, buffer(offset, response_id_len)) 
+    tree:add(f.response_id, buffer(offset, response_id_len))
     offset = offset + response_id_len
 
     local msg_uuid_len = buffer(offset, 4):uint()
@@ -381,7 +403,7 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     local response_id_len = buffer(offset, 4):uint()
     offset = offset + 4
 
-    tree:add(f.response_id, buffer(offset, response_id_len)) 
+    tree:add(f.response_id, buffer(offset, response_id_len))
     offset = offset + response_id_len
 
     local msg_uuid_len = buffer(offset, 4):uint()
@@ -402,7 +424,7 @@ local function dissect_alloy_data(buffer, pinfo, tree)
     end
 
     if exp_bit_set then
-      local fake_data_size = buffer(offset):len()-4 -- hack: there is no payload length field 
+      local fake_data_size = buffer(offset):len()-4 -- hack: there is no payload length field
       tree:add(f.data, buffer(offset, fake_data_size))
       offset = offset + fake_data_size
 
@@ -512,7 +534,7 @@ function dissect_alloy_control(buffer, pinfo, tree)
   offset = offset + 1
 
   -- dissect message type seperately
-  if cmd == 0x01 then -- HELLO
+  if cmd == 0x01 then -- Hello
     pinfo.cols.info:append("[Control: Hello] ")
 
     local ccver_len = buffer(offset, 2):uint()
@@ -565,7 +587,7 @@ function dissect_alloy_control(buffer, pinfo, tree)
 
     tree:append_text("Hello: ".."Alloy Control Version: "..control_version..", Protocol Version: "..protocol_version..", Device: ["..product_name.." / "..product_version.." / "..build.." / "..model.."]")
 
-  elseif cmd == 0x02 then -- SETUP
+  elseif cmd == 0x02 then -- Setup Channel
     pinfo.cols.info:append("[Control: Setup] ")
 
     tree:add(f.channel_proto, buffer(offset, 1))
@@ -617,7 +639,7 @@ function dissect_alloy_control(buffer, pinfo, tree)
     local service_name = buffer(offset-name_len, name_len):string()
     tree:append_text("Opened channel: ["..service_name.."]".." to port: "..dest_port)
 
-  elseif cmd == 0x03 then -- CLOSE
+  elseif cmd == 0x03 then -- Close Channel
     pinfo.cols.info:append("[Control: Close] ")
 
     local snd_uuid_len = buffer(offset, 2):uint()
@@ -657,10 +679,8 @@ function dissect_alloy_control(buffer, pinfo, tree)
 
     local service_name = buffer(offset-name_len, name_len):string()
     tree:append_text("Closed Channel: ["..service_name.."]")
-  elseif cmd == 0x06 then -- SetupEncryptedChannel
+  elseif cmd == 0x06 then -- Setup Encrypted Channel
     pinfo.cols.info:append("[Control: SetupEncryptedChannel] ")
-
-    -- TODO: figure out which of the unknown fields correspond to key, startSeq and ssrc here
 
     tree:add(f.channel_proto, buffer(offset, 1))
     offset = offset + 1
@@ -693,11 +713,14 @@ function dissect_alloy_control(buffer, pinfo, tree)
     --tree:add(f.len, buffer(offset, 2), name_len, nil, "(Name Length)")
     offset = offset + 2
 
-    tree:add(f.unk, buffer(offset, 6))
-    offset = offset + 6
+    tree:add(f.ssrc, buffer(offset, 4))
+    offset = offset + 4
 
-    local unk_len = buffer(offset, 2):uint() 
-    --tree:add(f.len, buffer(offset, 2), unk_len, nil, "(Unknown Data Length)")
+    tree:add(f.start_seq, buffer(offset, 2))
+    offset = offset + 2
+
+    local key_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), key_len, nil, "(Key Length)")
     offset = offset + 2
 
     tree:add(f.sender_uuid, buffer(offset, snd_uuid_len))
@@ -715,9 +738,10 @@ function dissect_alloy_control(buffer, pinfo, tree)
     tree:add(f.name, buffer(offset, name_len))
     offset = offset + name_len
 
-    tree:add(f.unk, buffer(offset, unk_len))
-    offset = offset + unk_len
+    tree:add(f.key, buffer(offset, key_len))
+    offset = offset + key_len
 
+    tree:append_text("SetupEncryptedChannel ")
   end
 
   return offset
@@ -762,7 +786,7 @@ function check_alloy(buffer, pinfo, tree)
 end
 
 --[[
-  function that finds out the type of the current dissected message and then returns the length of it  
+  function that finds out the type of the current dissected message and then returns the length of it
   NWSC: LL...
   Control: LLT...
   Data: TLLLL...
