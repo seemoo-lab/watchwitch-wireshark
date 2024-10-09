@@ -104,8 +104,8 @@ local f = alloy_proto.fields
   f.channel_proto = ProtoField.uint8 ("alloy.channel_proto", "Channel Protocol", base.HEX)
   f.src_port =      ProtoField.uint16("alloy.source_port", "Source Port", base.DEC)
   f.dest_port =     ProtoField.uint16("alloy.dest_port", "Destination Port", base.DEC)
-  f.sender_uuid =   ProtoField.string("alloy.sender_uuid", "Sender UUID", base.ASCII)
-  f.rcvr_uuid =     ProtoField.string("alloy.receiver_uuid", "Receiver UUID", base.ASCII)
+  f.remote_uuid =   ProtoField.string("alloy.remote_uuid", "Remote UUID", base.ASCII)
+  f.local_uuid =    ProtoField.string("alloy.local_uuid", "Local UUID", base.ASCII)
   f.account =       ProtoField.string("alloy.account", "Channel Account", base.ASCII)
   f.service =       ProtoField.string("alloy.service", "Channel Service", base.ASCII)
   f.name =          ProtoField.string("alloy.channel_name", "Channel Name", base.ASCII)
@@ -611,12 +611,12 @@ function dissect_alloy_control(buffer, pinfo, tree)
     local dest_port = buffer(offset, 2):uint()
     offset = offset + 2
 
-    local snd_uuid_len = buffer(offset, 2):uint()
-    --tree:add(f.len, buffer(offset, 2), snd_uuid_len, nil, "(Sender UUID Length)")
+    local remote_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), remote_uuid_len, nil, "(Remote UUID Length)")
     offset = offset + 2
 
-    local rcv_uuid_len = buffer(offset, 2):uint()
-    --tree:add(f.len, buffer(offset, 2), rcv_uuid_len, nil, "(Receiver UUID Length)")
+    local local_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), local_uuid_len, nil, "(Local UUID Length)")
     offset = offset + 2
     
     local account_len = buffer(offset, 2):uint()
@@ -631,11 +631,11 @@ function dissect_alloy_control(buffer, pinfo, tree)
     --tree:add(f.len, buffer(offset, 2), name_len, nil, "(Name Length)")
     offset = offset + 2
 
-    tree:add(f.sender_uuid, buffer(offset, snd_uuid_len))
-    offset = offset + snd_uuid_len
+    tree:add(f.remote_uuid, buffer(offset, remote_uuid_len))
+    offset = offset + remote_uuid_len
 
-    tree:add(f.rcvr_uuid, buffer(offset, rcv_uuid_len))
-    offset = offset + rcv_uuid_len
+    tree:add(f.local_uuid, buffer(offset, local_uuid_len))
+    offset = offset + local_uuid_len
 
     tree:add(f.account, buffer(offset, account_len))
     offset = offset + account_len
@@ -652,12 +652,12 @@ function dissect_alloy_control(buffer, pinfo, tree)
   elseif cmd == 0x03 then -- Close Channel
     pinfo.cols.info:append("[Control: Close] ")
 
-    local snd_uuid_len = buffer(offset, 2):uint()
-    --tree:add(f.len, buffer(offset, 2), snd_uuid_len, nil, "(Sender UUID Length)")
+    local remote_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), remote_uuid_len, nil, "(Remote UUID Length)")
     offset = offset + 2
 
-    local rcv_uuid_len = buffer(offset, 2):uint()
-    --tree:add(f.len, buffer(offset, 2), rcv_uuid_len, nil, "(Receiver UUID Length)")
+    local local_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), local_uuid_len, nil, "(Local UUID Length)")
     offset = offset + 2
 
     local account_len = buffer(offset, 2):uint()
@@ -672,11 +672,11 @@ function dissect_alloy_control(buffer, pinfo, tree)
     --tree:add(f.len, buffer(offset, 2), name_len, nil, "(Name Length)")
     offset = offset + 2
 
-    tree:add(f.sender_uuid, buffer(offset, snd_uuid_len))
-    offset = offset + snd_uuid_len
+    tree:add(f.remote_uuid, buffer(offset, remote_uuid_len))
+    offset = offset + remote_uuid_len
 
-    tree:add(f.rcvr_uuid, buffer(offset, rcv_uuid_len))
-    offset = offset + rcv_uuid_len
+    tree:add(f.local_uuid, buffer(offset, local_uuid_len))
+    offset = offset + local_uuid_len
 
     tree:add(f.account, buffer(offset, account_len))
     offset = offset + account_len
@@ -703,12 +703,12 @@ function dissect_alloy_control(buffer, pinfo, tree)
     local dest_port = buffer(offset, 2):uint()
     offset = offset + 2
 
-    local snd_uuid_len = buffer(offset, 2):uint()
-    --tree:add(f.len, buffer(offset, 2), snd_uuid_len, nil, "(Sender UUID Length)")
+    local remote_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), remote_uuid_len, nil, "(Remote UUID Length)")
     offset = offset + 2
 
-    local rcv_uuid_len = buffer(offset, 2):uint()
-    --tree:add(f.len, buffer(offset, 2), rcv_uuid_len, nil, "(Receiver UUID Length)")
+    local local_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), local_uuid_len, nil, "(Local UUID Length)")
     offset = offset + 2
     
     local account_len = buffer(offset, 2):uint()
@@ -733,11 +733,11 @@ function dissect_alloy_control(buffer, pinfo, tree)
     --tree:add(f.len, buffer(offset, 2), key_len, nil, "(Key Length)")
     offset = offset + 2
 
-    tree:add(f.sender_uuid, buffer(offset, snd_uuid_len))
-    offset = offset + snd_uuid_len
+    tree:add(f.remote_uuid, buffer(offset, remote_uuid_len))
+    offset = offset + remote_uuid_len
 
-    tree:add(f.rcvr_uuid, buffer(offset, rcv_uuid_len))
-    offset = offset + rcv_uuid_len
+    tree:add(f.local_uuid, buffer(offset, local_uuid_len))
+    offset = offset + local_uuid_len
 
     tree:add(f.account, buffer(offset, account_len))
     offset = offset + account_len
