@@ -92,6 +92,7 @@ local f = alloy_proto.fields
   f.len =  ProtoField.uint16("alloy.len", "Length", base.DEC)
   f.len2 = ProtoField.uint32("alloy.len2", "Length", base.DEC)
   f.seq =  ProtoField.uint32("alloy.seq", "Sequence Number", base.DEC)
+  f.ack =  ProtoField.uint32("alloy.ack", "Acknowledgement Number", base.DEC)
   f.data = ProtoField.bytes ("alloy.data", "Payload", base.NONE)
   f.unk =  ProtoField.bytes ("alloy.unknown", "Unknown Data", base.NONE)
 -- Alloy control fields
@@ -112,6 +113,7 @@ local f = alloy_proto.fields
   f.ssrc =          ProtoField.uint32("alloy.ssrc", "Encrypted Channel SSRC", base.HEX)
   f.key =           ProtoField.bytes ("alloy.key", "Encrypted Channel Key", base.NONE)
   f.start_seq =     ProtoField.uint16("alloy.start_seq", "Encrypted Channel Start Sequence", base.DEC)
+  f.remote_cid =    ProtoField.uint16("alloy.remote_cid", "Compression Remote Channel ID", base.DEC)
 -- Alloy option TLVs
   f.tlv_type =             ProtoField.uint8 ("alloy.options.type", "Type", base.HEX, alloy_hello_tlv_types)
   f.tlv_len =              ProtoField.uint16("alloy.options.len", "Length", base.DEC)
@@ -689,6 +691,98 @@ function dissect_alloy_control(buffer, pinfo, tree)
 
     local service_name = buffer(offset-name_len, name_len):string()
     tree:append_text("Closed Channel: ["..service_name.."]")
+
+  elseif cmd == 0x04 then -- Compression Request
+    pinfo.cols.info:append("[Control: CompressionRequest] ")
+
+    local remote_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), remote_uuid_len, nil, "(Remote UUID Length)")
+    offset = offset + 2
+
+    local local_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), local_uuid_len, nil, "(Local UUID Length)")
+    offset = offset + 2
+
+    local account_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), account_len, nil, "(Account Length)")
+    offset = offset + 2
+
+    local service_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), service_len, nil, "(Service Length)")
+    offset = offset + 2
+
+    local name_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), name_len, nil, "(Name Length)")
+    offset = offset + 2
+
+    tree:add(f.unk, buffer(offset, 2))
+    offset = offset + 2
+
+    tree:add(f.remote_cid, buffer(offset, 2))
+    offset = offset + 2
+
+    tree:add(f.seq, buffer(offset, 4))
+    offset = offset + 4
+
+    tree:add(f.ack, buffer(offset, 4))
+    offset = offset + 4
+
+    tree:add(f.remote_uuid, buffer(offset, remote_uuid_len))
+    offset = offset + remote_uuid_len
+
+    tree:add(f.local_uuid, buffer(offset, local_uuid_len))
+    offset = offset + local_uuid_len
+
+    tree:add(f.account, buffer(offset, account_len))
+    offset = offset + account_len
+
+    tree:add(f.service, buffer(offset, service_len))
+    offset = offset + service_len
+
+    tree:add(f.name, buffer(offset, name_len))
+    offset = offset + name_len
+
+  elseif cmd == 0x05 then -- Compression Response
+    pinfo.cols.info:append("[Control: CompressionResponse] ")
+
+    local remote_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), remote_uuid_len, nil, "(Remote UUID Length)")
+    offset = offset + 2
+
+    local local_uuid_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), local_uuid_len, nil, "(Local UUID Length)")
+    offset = offset + 2
+
+    local account_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), account_len, nil, "(Account Length)")
+    offset = offset + 2
+
+    local service_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), service_len, nil, "(Service Length)")
+    offset = offset + 2
+
+    local name_len = buffer(offset, 2):uint()
+    --tree:add(f.len, buffer(offset, 2), name_len, nil, "(Name Length)")
+    offset = offset + 2
+
+    tree:add(f.unk, buffer(offset, 2))
+    offset = offset + 2
+    
+    tree:add(f.remote_uuid, buffer(offset, remote_uuid_len))
+    offset = offset + remote_uuid_len
+
+    tree:add(f.local_uuid, buffer(offset, local_uuid_len))
+    offset = offset + local_uuid_len
+
+    tree:add(f.account, buffer(offset, account_len))
+    offset = offset + account_len
+
+    tree:add(f.service, buffer(offset, service_len))
+    offset = offset + service_len
+
+    tree:add(f.name, buffer(offset, name_len))
+    offset = offset + name_len
+
   elseif cmd == 0x06 then -- Setup Encrypted Channel
     pinfo.cols.info:append("[Control: SetupEncryptedChannel] ")
 
