@@ -68,7 +68,7 @@ function call_dissector(cid, type) -- call specific dissector to given BTL2CAP c
 end
 
 function magnet_proto.dissector(buffer, pinfo, tree)
-  local length = buffer:len()
+  local length = buffer():len()
   if length == 0 then return end 
   pinfo.cols.protocol = magnet_proto.name
 
@@ -90,7 +90,7 @@ function magnet_proto.dissector(buffer, pinfo, tree)
   end
 
 
-  if cmd == 0x01 then ------ PARSE SE RVICES
+  if cmd == 0x01 then ------ PARSE SERVICES
     subtree:add(f.service_amount, buffer(offset, 1))
     local service_amount = buffer(offset, 1):uint()
     offset = offset + 1
@@ -151,7 +151,7 @@ function magnet_proto.dissector(buffer, pinfo, tree)
     -- register dissector for channel if service is known and implemented
     call_dissector(cid, known_services[service_name] or 0)
 
-  elseif cmd == 0x04 then -- PARSE SERVICE CHANNEL ACCEPTANCE   
+  elseif cmd == 0x04 then -- PARSE SERVICE CHANNEL ACCEPTANCE
     subtree:add(f.data, buffer(offset, 1))
     offset = offset + 1
 
@@ -216,7 +216,7 @@ function magnet_proto.dissector(buffer, pinfo, tree)
 
   elseif cmd == 0x71 then -- PARSE TIME RESPONSE TYPE 1
     local ts = buffer(offset, 8):le_uint64()
-    local secs = ts:tonumber() / 1e9
+    local secs = math.floor(ts:tonumber() / 1e9)
     local nsecs= ts:tonumber() % 1e9
     subtree:add(f.timestamp, buffer(offset, 8), NSTime.new(secs, nsecs))
     offset = offset + 8
