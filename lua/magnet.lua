@@ -42,6 +42,11 @@ local f = magnet_proto.fields
   f.ver_flags = ProtoField.uint32("magnet.ver_flags", "Magnet Version Flags", base.HEX)
 -- cmd 0x71: time data
   f.timestamp = ProtoField.absolute_time("magnet.timestamp", "Unix Timestamp", base.UTC)
+-- cmd 0x90: DID
+  f.vid = ProtoField.uint16("magnet.vid","vid", base.HEX)
+  f.pid = ProtoField.uint16("magnet.pid","pid", base.HEX)
+  f.did_version = ProtoField.uint16("magnet.did_version","version", base.HEX)
+  f.chipset = ProtoField.uint16("magnet.chipset","chipset", base.HEX)
 -- unknown data
   f.data = ProtoField.bytes("magnet.data", "Unknown Data", base.NONE)
 
@@ -228,9 +233,15 @@ function magnet_proto.dissector(buffer, pinfo, tree)
     subtree:add_le(f.data, buffer(offset))
     offset = offset + buffer(offset):len()
 
-  elseif cmd == 0x90 then -- PARSE DIDINFO (structure unknown)
-    subtree:add_le(f.data, buffer(offset))
-    offset = offset + buffer(offset):len()
+  elseif cmd == 0x90 then -- PARSE DIDINFO
+    subtree:add(f.vid, buffer(offset, 2), buffer(offset, 2):le_uint())
+    offset = offset + 2
+    subtree:add(f.pid, buffer(offset, 2), buffer(offset, 2):le_uint())
+    offset = offset + 2
+    subtree:add(f.did_version, buffer(offset, 2), buffer(offset, 2):le_uint())
+    offset = offset + 2
+    subtree:add(f.chipset, buffer(offset, 2), buffer(offset, 2):le_uint())
+    offset = offset + 2
 
   elseif cmd == 0x91 then -- PARSE CLDATA (structure unknown)
     subtree:add_le(f.data, buffer(offset))
