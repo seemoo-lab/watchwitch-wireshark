@@ -1,7 +1,7 @@
 # Running patched Wireshark for ESP decryption
 
-Due to the Wireshark IPSec/ESP dissector missing support for ChaCha20-Poly1305-IIV, it is needed to manually patch this in.
-This is required to see data beyond the ESP encryption.
+On older Wireshark versions the IPSec/ESP dissector is missing support for ChaCha20-Poly1305-IIV.
+The patches are required to see data beyond the ESP encryption.
 
 ## Installation
 ### NixOS

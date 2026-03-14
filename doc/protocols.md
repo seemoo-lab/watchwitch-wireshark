@@ -22,10 +22,8 @@ This protocol has already been partially documented by pyatv which you can read 
 It was deemed low priority for us and also needs tools to dump the keys which we don't have and requires support for decrypting ChaCha20-Poly1305 aswell.\
 Because this is not encapsulated in the same style as the IPSec VPN tunnel carrying Alloy, it makes the patches made not reusable for this case.
 
-## ESP (patches)
-The preferred encryption standard used by the watch IPSec ESP tunnel is ChaCha20-Poly1305-IIV.\
-Although Wireshark has support for IPSec ESP payloads, this specific encryption standard is not supported.\
-A patch to Wireshark for our specific usecase is available under [patches/](patches/)
+## ESP
+The preferred encryption standard used by the watch IPSec ESP tunnel is ChaCha20-Poly1305-IIV.
 
 ## SHOES
 Network Proxy for internet sharing between watch and phone.\
